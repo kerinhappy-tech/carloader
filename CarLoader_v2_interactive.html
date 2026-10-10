@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CarLoader — конструктор загрузки</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#eef2f7;color:#172033}
+button,input,select{font:inherit}
+button{cursor:pointer;border:0}
+.header{background:#172033;color:#fff;padding:14px 22px;display:flex;align-items:center;justify-content:space-between;gap:15px;position:sticky;top:0;z-index:20}
+.logo{font-size:22px;font-weight:800}.logo span{color:#5aa7ff}
+.header small{opacity:.75}
+.layout{display:grid;grid-template-columns:330px 1fr 330px;gap:14px;padding:14px;max-width:1700px;margin:auto}
+.panel{background:#fff;border-radius:14px;padding:16px;box-shadow:0 3px 15px #00000010}
+.panel h2{margin:0 0 12px;font-size:18px}
+.panel h3{font-size:14px;margin:18px 0 8px}
+label{display:block;font-size:12px;color:#68758a;margin:9px 0 4px}
+input,select{width:100%;padding:9px 10px;border:1px solid #cfd7e3;border-radius:8px;background:#fff}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}
+.btn{padding:10px 12px;border-radius:9px;background:#e8eef7;color:#17304f;font-weight:700}
+.btn.primary{background:#1677ff;color:#fff}.btn.success{background:#16a36a;color:#fff}.btn.danger{background:#e74c3c;color:#fff}
+.btn.full{width:100%;margin-top:10px}
+.small{font-size:11px;color:#718096}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:8px 11px;border-radius:8px;background:#edf2f8;font-size:12px;font-weight:700}
+.tab.active{background:#1677ff;color:#fff}
+.statgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.stat{background:#f4f7fb;border-radius:10px;padding:10px}.stat b{display:block;font-size:17px}.stat span{font-size:10px;color:#6b7789}
+.work{min-width:0}
+#scene{width:100%;height:610px;border-radius:14px;background:linear-gradient(#f7fbff,#dfe8f2);display:block;border:1px solid #c7d1df}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11px;margin-top:8px}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-2px;margin-right:4px}
+.list{max-height:290px;overflow:auto;border:1px solid #e0e6ef;border-radius:10px}
+.item{padding:9px;border-bottom:1px solid #e7ebf1;display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:12px}
+.item:last-child{border-bottom:0}
+.item b{font-size:12px}.item .meta{color:#718096;font-size:10px;margin-top:2px}
+.iconbtn{background:#eef2f7;border-radius:6px;padding:5px 7px}
+.order-card{background:#f7f9fc;padding:10px;border-radius:10px;margin-bottom:8px;font-size:12px}
+.notice{background:#fff7df;border:1px solid #f1d27b;padding:9px;border-radius:9px;font-size:11px;margin-top:10px}
+.good{color:#087f52}.bad{color:#c0392b}
+.tablewrap{overflow:auto;max-height:250px;border:1px solid #e0e6ef;border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:11px}
+th,td{padding:7px;border-bottom:1px solid #e8edf3;text-align:left;white-space:nowrap}
+th{background:#f4f7fb;position:sticky;top:0}
+.modal{position:fixed;inset:0;background:#0008;display:none;align-items:center;justify-content:center;z-index:50;padding:15px}
+.modal.show{display:flex}
+.modalbox{background:#fff;border-radius:14px;padding:18px;width:min(600px,100%);max-height:90vh;overflow:auto}
+.modalhead{display:flex;justify-content:space-between;align-items:center}
+.printOnly{display:none}
+@media(max-width:1150px){.layout{grid-template-columns:280px 1fr}.right{grid-column:1/-1}.statgrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:800px){.layout{grid-template-columns:1fr}.right{grid-column:auto}#scene{height:460px}}
+@media print{
+ body{background:#fff}.header,.left,.right,.tabs,.noPrint{display:none!important}.layout{display:block;padding:0}.work{width:100%}.panel{box-shadow:none;padding:0}
+ #scene{height:650px;border:1px solid #999}.printOnly{display:block}.statgrid{grid-template-columns:repeat(4,1fr)}
+}
+</style>
+
+<style>
+/* CarLoader V2 — интерактивная загрузка */
+.selected-load{outline:3px solid #ff3b30!important}
+.drag-hint{font-size:11px;color:#64748b;margin-top:8px}
+.modebar{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.modebar .btn{padding:8px 10px;font-size:11px}
+#selectedInfo{margin-top:9px;padding:9px;border-radius:9px;background:#f4f7fb;font-size:11px;min-height:36px}
+.load-actions{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:8px}
+</style>
+
+</head>
+<body>
+<header class="header noPrint">
+  <div><div class="logo">Car<span>Loader</span></div><small>Конструктор загрузки автомобиля</small></div>
+  <div>
+    <button class="btn" onclick="newOrder()">Новый заказ</button>
+    <button class="btn success" onclick="saveOrder()">Сохранить заказ</button>
+    <button class="btn" onclick="printReport()">PDF / Печать</button>
+  </div>
+</header>
+
+<div class="layout">
+<section class="panel left">
+  <h2>1. Машина</h2>
+  <label>Тип автомобиля</label>
+  <select id="vehicleType" onchange="applyVehicle()">
+    <option value="gazel">Газель</option>
+    <option value="gazel_long">Газель удлинённая</option>
+    <option value="sprinter">Mercedes Sprinter</option>
+    <option value="kamaz">КамАЗ</option>
+    <option value="fura">Фура 20 т</option>
+    <option value="custom">Свой кузов</option>
+  </select>
+  <div class="row3">
+    <div><label>Длина, м</label><input id="vL" type="number" step=".01"></div>
+    <div><label>Ширина, м</label><input id="vW" type="number" step=".01"></div>
+    <div><label>Высота, м</label><input id="vH" type="number" step=".01"></div>
+  </div>
+  <label>Грузоподъёмность, кг</label><input id="vMaxW" type="number">
+  <label>Максимальная высота груза, м</label><input id="vMaxH" type="number" step=".01">
+  <button class="btn primary full" onclick="updateVehicle()">Применить кузов</button>
+
+  <h3>2. Добавить груз</h3>
+  <label>Название</label><input id="itemName" placeholder="Коробка косметики">
+  <div class="row3">
+    <div><label>Длина, м</label><input id="iL" type="number" step=".01" value="0.6"></div>
+    <div><label>Ширина, м</label><input id="iW" type="number" step=".01" value="0.4"></div>
+    <div><label>Высота, м</label><input id="iH" type="number" step=".01" value="0.4"></div>
+  </div>
+  <div class="row">
+    <div><label>Вес 1 шт., кг</label><input id="iWeight" type="number" step=".1" value="20"></div>
+    <div><label>Количество</label><input id="iQty" type="number" min="1" value="1"></div>
+  </div>
+  <div class="row">
+    <div><label>Тип</label>
+      <select id="iType"><option value="box">Коробка</option><option value="pallet">Паллет</option></select>
+    </div>
+    <div><label>Штабелировать</label>
+      <select id="iStack"><option value="yes">Да</option><option value="no">Нет</option></select>
+    </div>
+  </div>
+  <button class="btn full" onclick="addItem()">+ Добавить груз</button>
+
+  <h3>Грузы в заказе</h3>
+  <div id="itemList" class="list"></div>
+  <button class="btn danger full" onclick="clearItems()">Очистить груз</button>
+</section>
+
+<section class="work">
+  <div class="panel">
+    <div class="tabs">
+      <button class="tab active" onclick="showView('3d',this)">3D-схема</button>
+      <button class="tab" onclick="showView('top',this)">Вид сверху</button>
+      <button class="tab" onclick="showView('side',this)">Вид сбоку</button>
+      <button class="tab" onclick="showView('table',this)">Таблица загрузки</button>
+    </div>
+    <div class="statgrid">
+      <div class="stat"><b id="sWeight">0 кг</b><span>Вес груза</span></div>
+      <div class="stat"><b id="sVolume">0 м³</b><span>Объём груза</span></div>
+      <div class="stat"><b id="sUtil">0%</b><span>Заполнение объёма</span></div>
+      <div class="stat"><b id="sSpace">0</b><span>Свободный объём</span></div>
+    </div>
+    <canvas id="scene"></canvas>
+    <div class="legend">
+      <span><i style="background:#3b82f6"></i>Коробки</span>
+      <span><i style="background:#f59e0b"></i>Паллеты</span>
+      <span><i style="background:#10b981"></i>Размещено</span>
+      <span><i style="background:#ef4444"></i>Не помещается</span>
+    </div>
+  </div>
+
+  <div class="panel" style="margin-top:14px">
+    <h2>Автоматическая оптимизация</h2>
+    <div class="row">
+      <button class="btn primary" onclick="optimize()">🚚 Оптимизировать загрузку</button>
+      <button class="btn" onclick="resetPacking()">↻ Сбросить схему</button>
+    </div>
+    <div id="result" class="notice">Добавьте груз и нажмите «Оптимизировать загрузку».</div>
+  </div>
+
+  <div class="panel printOnly" style="margin-top:14px">
+    <h2>Отчёт CarLoader</h2>
+    <p id="printInfo"></p>
+    <p id="printResult"></p>
+  </div>
+
+<div class="panel noPrint" style="margin-top:14px">
+  <h2>Интерактивная загрузка</h2>
+  <div class="modebar">
+    <button class="btn" onclick="setInteractionMode('select')">☝ Выбор</button>
+    <button class="btn" onclick="setInteractionMode('drag')">✋ Перемещение</button>
+    <button class="btn" onclick="rotateSelected()">↻ Повернуть</button>
+    <button class="btn danger" onclick="deleteSelected()">Удалить</button>
+  </div>
+  <div id="selectedInfo">Выберите размещённую коробку или паллету на схеме.</div>
+  <div class="load-actions">
+    <button class="btn" onclick="moveSelected(-0.1,0)">←</button>
+    <button class="btn" onclick="moveSelected(0,0.1)">↓</button>
+    <button class="btn" onclick="moveSelected(0.1,0)">→</button>
+  </div>
+  <div class="drag-hint">
+    Можно перетаскивать груз мышкой по полу кузова. Клавиши <b>R</b> — поворот, <b>Delete</b> — удалить.
+    После ручного изменения можно снова нажать «Оптимизировать загрузку».
+  </div>
+</div>
+
+</section>
+
+<section class="panel right">
+  <h2>3. Клиент и заказ</h2>
+  <label>Клиент</label><input id="clientName" placeholder="ООО Ромашка">
+  <label>Телефон / контакт</label><input id="clientPhone" placeholder="+7 ...">
+  <label>Номер заказа</label><input id="orderNo" placeholder="Заказ №">
+  <label>Маршрут</label><input id="route" placeholder="Москва → Воронеж">
+  <label>Дата</label><input id="orderDate" type="date">
+
+  <h3>Ограничения</h3>
+  <label>Макс. вес, кг</label><input id="limitWeight" type="number" placeholder="из машины">
+  <label>Макс. высота, м</label><input id="limitHeight" type="number" step=".01" placeholder="из машины">
+  <label>Запрет штабелирования</label>
+  <select id="globalNoStack"><option value="no">Нет</option><option value="yes">Да</option></select>
+
+  <button class="btn success full" onclick="saveClient()">Сохранить клиента</button>
+  <h3>Сохранённые клиенты</h3>
+  <div id="clientList" class="list"></div>
+
+  <h3>Сохранённые заказы</h3>
+  <div id="orderList" class="list"></div>
+</section>
+</div>
+
+<div class="modal" id="modal">
+  <div class="modalbox">
+    <div class="modalhead"><h2 id="modalTitle">Данные</h2><button class="iconbtn" onclick="closeModal()">✕</button></div>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================
+   ДАННЫЕ ПРИЛОЖЕНИЯ
+========================= */
+const VEHICLES = {
+  gazel:{name:"Газель",L:4.2,W:2.0,H:2.0,maxW:1500},
+  gazel_long:{name:"Газель удлинённая",L:5.1,W:2.0,H:2.1,maxW:1500},
+  sprinter:{name:"Mercedes Sprinter",L:4.3,W:1.75,H:1.9,maxW:1200},
+  kamaz:{name:"КамАЗ",L:6.5,W:2.45,H:2.5,maxW:10000},
+  fura:{name:"Фура 20 т",L:13.6,W:2.45,H:2.7,maxW:20000},
+  custom:{name:"Свой кузов",L:4.2,W:2.0,H:2.0,maxW:1500}
+};
+
+let state = {
+  vehicle:{...VEHICLES.gazel},
+  items:[],
+  placed:[],
+  unplaced:[],
+  clients:[],
+  orders:[],
+  view:"3d"
+};
+
+/* =========================
+   СТАРТ
+========================= */
+document.addEventListener("DOMContentLoaded",()=>{
+  document.getElementById("orderDate").value = new Date().toISOString().slice(0,10);
+  loadStorage();
+  applyVehicle();
+  renderItems();
+  renderClients();
+  renderOrders();
+  draw();
+});
+
+function el(id){return document.getElementById(id)}
+function num(id){return Number(el(id).value)||0}
+function fmt(n,d=2){return Number(n).toFixed(d)}
+function esc(s){return String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+
+/* =========================
+   МАШИНА
+========================= */
+function applyVehicle(){
+  const v=VEHICLES[el("vehicleType").value];
+  el("vL").value=v.L; el("vW").value=v.W; el("vH").value=v.H;
+  el("vMaxW").value=v.maxW; el("vMaxH").value=v.H;
+}
+function updateVehicle(){
+  state.vehicle={
+    name:VEHICLES[el("vehicleType").value].name,
+    L:num("vL"),W:num("vW"),H:num("vH"),maxW:num("vMaxW")
+  };
+  el("limitWeight").placeholder=state.vehicle.maxW;
+  el("limitHeight").placeholder=state.vehicle.H;
+  resetPacking(); draw();
+}
+
+/* =========================
+   ГРУЗ
+========================= */
+function addItem(){
+  const item={
+    id:Date.now()+Math.random(),
+    name:el("itemName").value.trim()||"Груз",
+    L:num("iL"),W:num("iW"),H:num("iH"),
+    weight:num("iWeight"),qty:Math.max(1,parseInt(el("iQty").value)||1),
+    type:el("iType").value,
+    stackable:el("iStack").value==="yes"
+  };
+  if(item.L<=0||item.W<=0||item.H<=0||item.weight<0){
+    alert("Проверьте размеры и вес груза."); return;
+  }
+  state.items.push(item);
+  el("itemName").value="";
+  renderItems();
+  resetPacking();
+}
+function removeItem(id){
+  state.items=state.items.filter(x=>x.id!==id);
+  renderItems(); resetPacking();
+}
+function clearItems(){
+  if(confirm("Удалить весь груз?")){
+    state.items=[]; resetPacking(); renderItems();
+  }
+}
+function renderItems(){
+  const box=el("itemList");
+  if(!state.items.length){
+    box.innerHTML='<div class="item"><span class="small">Груз пока не добавлен</span></div>'; return;
+  }
+  box.innerHTML=state.items.map(x=>`
+    <div class="item">
+      <div><b>${esc(x.name)}</b><div class="meta">${x.type==="pallet"?"Паллет":"Коробка"} · ${x.qty} шт · ${x.L}×${x.W}×${x.H} м · ${x.weight} кг/шт</div></div>
+      <button class="iconbtn" onclick="removeItem(${x.id})">✕</button>
+    </div>`).join("");
+}
+
+/* =========================
+   3D-ПАКОВКА
+   Простой, понятный эвристический
+   алгоритм first-fit + 6 поворотов.
+========================= */
+function expandItems(){
+  const arr=[];
+  state.items.forEach(src=>{
+    for(let i=0;i<src.qty;i++){
+      arr.push({
+        uid:src.id+"_"+i,
+        name:src.name,
+        L:src.L,W:src.W,H:src.H,
+        weight:src.weight,
+        type:src.type,
+        stackable:src.stackable
+      });
+    }
+  });
+  return arr.sort((a,b)=>(b.L*b.W*b.H)-(a.L*a.W*a.H));
+}
+
+function rotations(o){
+  const a=[
+    [o.L,o.W,o.H],[o.L,o.H,o.W],
+    [o.W,o.L,o.H],[o.W,o.H,o.L],
+    [o.H,o.L,o.W],[o.H,o.W,o.L]
+  ];
+  const seen=new Set(), out=[];
+  a.forEach(r=>{const k=r.join("|");if(!seen.has(k)){seen.add(k);out.push(r)}})
+  return out;
+}
+function intersects(a,b){
+  return !(a.x+a.l<=b.x+.00001 || b.x+b.l<=a.x+.00001 ||
+           a.y+a.w<=b.y+.00001 || b.y+b.w<=a.y+.00001 ||
+           a.z+a.h<=b.z+.00001 || b.z+b.h<=a.z+.00001);
+}
+function inside(p,v){
+  return p.x+p.l<=v.L+.00001 && p.y+p.w<=v.W+.00001 && p.z+p.h<=v.H+.00001;
+}
+function canStack(item, p, placed){
+  if(!item.stackable) return p.z===0;
+  if(p.z===0) return true;
+  const supporters=placed.filter(q=>
+    Math.abs(q.z+q.h-p.z)<.0001 &&
+    p.x<q.x+q.l-.00001 && p.x+p.l>q.x+.00001 &&
+    p.y<q.y+q.w-.00001 && p.y+p.w>q.y+.00001
+  );
+  if(!supporters.length) return false;
+  const supportArea=supporters.reduce((s,q)=>{
+    const ix=Math.max(0,Math.min(p.x+p.l,q.x+q.l)-Math.max(p.x,q.x));
+    const iy=Math.max(0,Math.min(p.y+p.w,q.y+q.w)-Math.max(p.y,q.y));
+    return s+ix*iy;
+  },0);
+  return supportArea >= p.l*p.w*.65;
+}
+
+function optimize(){
+  if(!state.items.length){alert("Сначала добавьте груз.");return}
+  const v={...state.vehicle};
+  const maxWeight=num("limitWeight")||v.maxW;
+  const maxHeight=num("limitHeight")||v.H;
+  const noStack=el("globalNoStack").value==="yes";
+  const all=expandItems();
+
+  let placed=[],unplaced=[],weight=0;
+  const candidates=()=> {
+    const c=[{x:0,y:0,z:0}];
+    placed.forEach(p=>{
+      c.push({x:p.x+p.l,y:p.y,z:p.z});
+      c.push({x:p.x,y:p.y+p.w,z:p.z});
+      c.push({x:p.x,y:p.y,z:p.z+p.h});
+      c.push({x:p.x+p.l,y:p.y,z:p.z+p.h});
+      c.push({x:p.x,y:p.y+p.w,z:p.z+p.h});
+    });
+    const map=new Map();
+    c.forEach(p=>map.set([p.x.toFixed(4),p.y.toFixed(4),p.z.toFixed(4)].join("|"),p));
+    return [...map.values()].sort((a,b)=>a.z-b.z||a.y-b.y||a.x-b.x);
+  };
+
+  all.forEach(item=>{
+    let best=null;
+    if(weight+item.weight<=maxWeight+.0001){
+      for(const p0 of candidates()){
+        for(const r of rotations(item)){
+          const p={x:p0.x,y:p0.y,z:p0.z,l:r[0],w:r[1],h:r[2],...item};
+          if(p.z+p.h>maxHeight+.0001) continue;
+          if(!inside(p,v)) continue;
+          if(noStack && p.z>0) continue;
+          if(!canStack(item,p,placed)) continue;
+          if(placed.some(q=>intersects(p,q))) continue;
+          const score=p.z*10000+p.y*100+p.x;
+          if(!best||score<best.score) best={...p,score};
+        }
+      }
+    }
+    if(best){
+      delete best.score; placed.push(best); weight+=item.weight;
+    }else unplaced.push(item);
+  });
+
+  state.placed=placed;
+  state.unplaced=unplaced;
+  updateStats();
+  draw();
+
+  const totalVol=all.reduce((s,x)=>s+x.L*x.W*x.H,0);
+  const packedVol=placed.reduce((s,x)=>s+x.l*x.w*x.h,0);
+  const util=v.L*v.W*v.H?packedVol/(v.L*v.W*v.H)*100:0;
+  const result=el("result");
+  result.innerHTML=`
+    <b class="${unplaced.length?'bad':'good'}">${unplaced.length?'⚠ Не весь груз помещён':'✓ Загрузка оптимизирована'}</b><br>
+    Размещено: <b>${placed.length}</b> из <b>${all.length}</b> мест.<br>
+    Вес: <b>${fmt(weight,1)} кг</b> / ${fmt(maxWeight,1)} кг.<br>
+    Объём груза: <b>${fmt(totalVol)} м³</b>. Занятый объём кузова: <b>${fmt(util,1)}%</b>.
+    ${unplaced.length?`<br><span class="bad">Не помещается: ${unplaced.length} мест.</span>`:""}
+  `;
+  el("printInfo").innerHTML=`Машина: <b>${esc(v.name)}</b>, кузов ${fmt(v.L)}×${fmt(v.W)}×${fmt(v.H)} м. Клиент: <b>${esc(el("clientName").value)}</b>. Маршрут: <b>${esc(el("route").value)}</b>.`;
+  el("printResult").innerHTML=`Размещено ${placed.length} из ${all.length}; вес ${fmt(weight,1)} кг; объём груза ${fmt(totalVol)} м³; заполнение кузова ${fmt(util,1)}%.`;
+}
+function resetPacking(){
+  state.placed=[];state.unplaced=[];updateStats();draw();
+  el("result").innerHTML="Схема сброшена. Нажмите «Оптимизировать загрузку».";
+}
+function updateStats(){
+  const all=expandItems();
+  const weight=all.reduce((s,x)=>s+x.weight,0);
+  const vol=all.reduce((s,x)=>s+x.L*x.W*x.H,0);
+  const vehicleVol=state.vehicle.L*state.vehicle.W*state.vehicle.H;
+  const util=vehicleVol?state.placed.reduce((s,x)=>s+x.l*x.w*x.h,0)/vehicleVol*100:0;
+  el("sWeight").textContent=fmt(weight,1)+" кг";
+  el("sVolume").textContent=fmt(vol)+" м³";
+  el("sUtil").textContent=fmt(util,1)+"%";
+  el("sSpace").textContent=fmt(Math.max(0,vehicleVol-vol))+" м³";
+}
+
+/* =========================
+   ОТРИСОВКА
+========================= */
+function resizeCanvas(){
+  const c=el("scene"), dpr=window.devicePixelRatio||1, r=c.getBoundingClientRect();
+  c.width=Math.max(1,r.width*dpr); c.height=Math.max(1,r.height*dpr);
+  return {c,ctx:c.getContext("2d"),w:r.width,h:r.height,dpr};
+}
+function iso(x,y,z,scale,ox,oy){
+  return {x:ox+(x-y)*scale,y:oy+(x+y)*scale*.48-z*scale*.9};
+}
+function draw(){
+  const {ctx,w,h,dpr}=resizeCanvas();
+  ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+  if(state.view==="table"){drawTable(ctx,w,h);return}
+  const v=state.vehicle, max=Math.max(v.L,v.W,v.H);
+  const scale=Math.min(w/(v.L+v.W+4),h/(v.L*.55+v.W*.55+v.H+3))*1.15;
+  const ox=w/2,oy=h*.70;
+
+  function line(a,b,style="#718096",width=1){
+    ctx.beginPath();ctx.moveTo(a.x,a.y);ctx.lineTo(b.x,b.y);ctx.strokeStyle=style;ctx.lineWidth=width;ctx.stroke();
+  }
+  function box3(x,y,z,l,ww,hh,fill,alpha=1){
+    const A=iso(x,y,z,scale,ox,oy),B=iso(x+l,y,z,scale,ox,oy),C=iso(x+l,y+ww,z,scale,ox,oy),D=iso(x,y+ww,z,scale,ox,oy);
+    const A2=iso(x,y,z+hh,scale,ox,oy),B2=iso(x+l,y,z+hh,scale,ox,oy),C2=iso(x+l,y+ww,z+hh,scale,ox,oy),D2=iso(x,y+ww,z+hh,scale,ox,oy);
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=fill;
+    [[A,B,B2,A2],[B,C,C2,B2],[D,C,C2,D2]].forEach(poly=>{
+      ctx.beginPath();ctx.moveTo(poly[0].x,poly[0].y);poly.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fill();ctx.strokeStyle="#ffffff99";ctx.stroke();
+    });
+    ctx.globalAlpha=1;
+  }
+
+  // кузов
+  box3(0,0,0,v.L,v.W,v.H,"#aebccc",.12);
+  // сетка пола
+  for(let x=0;x<=v.L+.001;x+=Math.max(.5,v.L/10)){
+    line(iso(x,0,0,scale,ox,oy),iso(x,v.W,0,scale,ox,oy),"#8ea0b5",.35);
+  }
+  for(let y=0;y<=v.W+.001;y+=Math.max(.5,v.W/5)){
+    line(iso(0,y,0,scale,ox,oy),iso(v.L,y,0,scale,ox,oy),"#8ea0b5",.35);
+  }
+
+  // объекты
+  state.placed.slice().sort((a,b)=>a.z-b.z).forEach((p,i)=>{
+    const fill=p.type==="pallet"?"#f59e0b":"#3b82f6";
+    box3(p.x,p.y,p.z,p.l,p.w,p.h,fill,.78);
+    const q=iso(p.x+p.l/2,p.y+p.w/2,p.z+p.h/2,scale,ox,oy);
+    ctx.fillStyle="#fff";ctx.font="10px Arial";ctx.textAlign="center";
+    ctx.fillText(String(i+1),q.x,q.y+3);
+  });
+
+  // неразмещённый индикатор
+  if(state.unplaced.length){
+    ctx.fillStyle="#c0392b";ctx.font="bold 14px Arial";ctx.textAlign="left";
+    ctx.fillText("Не помещается: "+state.unplaced.length+" мест",18,25);
+  }
+  ctx.fillStyle="#344054";ctx.font="12px Arial";ctx.textAlign="left";
+  ctx.fillText(`${v.name} · кузов ${v.L} × ${v.W} × ${v.H} м`,18,h-18);
+}
+function drawTable(ctx,w,h){
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+  ctx.fillStyle="#172033";ctx.font="bold 15px Arial";ctx.fillText("Таблица размещения",20,28);
+  const headers=["№","Груз","X","Y","Z","Д","Ш","В","Вес"];
+  const xs=[20,55,210,270,330,390,450,510,570];
+  ctx.font="bold 11px Arial";headers.forEach((x,i)=>ctx.fillText(x,xs[i],52));
+  ctx.font="10px Arial";
+  state.placed.forEach((p,i)=>{
+    const y=73+i*22;
+    [i+1,p.name,fmt(p.x,2),fmt(p.y,2),fmt(p.z,2),fmt(p.l,2),fmt(p.w,2),fmt(p.h,2),fmt(p.weight,1)].forEach((x,j)=>ctx.fillText(String(x),xs[j],y));
+  });
+}
+function showView(view,button){
+  state.view=view;
+  document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+  if(button)button.classList.add("active");
+  draw();
+}
+window.addEventListener("resize",draw);
+
+/* =========================
+   КЛИЕНТЫ / ЗАКАЗЫ
+========================= */
+function saveClient(){
+  const name=el("clientName").value.trim();
+  if(!name){alert("Введите название клиента.");return}
+  const clients=JSON.parse(localStorage.getItem("carloader_clients")||"[]");
+  const obj={id:Date.now(),name,phone:el("clientPhone").value.trim()};
+  clients.unshift(obj);
+  localStorage.setItem("carloader_clients",JSON.stringify(clients));
+  state.clients=clients;renderClients();
+}
+function renderClients(){
+  const clients=JSON.parse(localStorage.getItem("carloader_clients")||"[]");
+  state.clients=clients;
+  el("clientList").innerHTML=clients.length?clients.map(c=>`
+    <div class="item">
+      <div><b>${esc(c.name)}</b><div class="meta">${esc(c.phone)}</div></div>
+      <button class="iconbtn" onclick="useClient(${c.id})">Выбрать</button>
+    </div>`).join(""):'<div class="item"><span class="small">Нет сохранённых клиентов</span></div>';
+}
+function useClient(id){
+  const c=state.clients.find(x=>x.id===id);if(!c)return;
+  el("clientName").value=c.name;el("clientPhone").value=c.phone;
+}
+function saveOrder(){
+  const order={
+    id:Date.now(),
+    orderNo:el("orderNo").value.trim()||("ORD-"+Date.now()),
+    date:el("orderDate").value,
+    client:el("clientName").value.trim(),
+    phone:el("clientPhone").value.trim(),
+    route:el("route").value.trim(),
+    vehicle:{...state.vehicle},
+    items:JSON.parse(JSON.stringify(state.items)),
+    placed:JSON.parse(JSON.stringify(state.placed)),
+    unplaced:JSON.parse(JSON.stringify(state.unplaced))
+  };
+  const orders=JSON.parse(localStorage.getItem("carloader_orders")||"[]");
+  orders.unshift(order);
+  localStorage.setItem("carloader_orders",JSON.stringify(orders));
+  state.orders=orders;renderOrders();
+  alert("Заказ сохранён в этом браузере.");
+}
+function renderOrders(){
+  const orders=JSON.parse(localStorage.getItem("carloader_orders")||"[]");
+  state.orders=orders;
+  el("orderList").innerHTML=orders.length?orders.slice(0,20).map(o=>`
+    <div class="order-card">
+      <b>${esc(o.orderNo)}</b><br>${esc(o.client||"Без клиента")}<br>
+      <span class="small">${esc(o.route||"")} · ${esc(o.date||"")}</span><br>
+      <button class="iconbtn" onclick="loadOrder(${o.id})">Открыть</button>
+      <button class="iconbtn" onclick="deleteOrder(${o.id})">Удалить</button>
+    </div>`).join(""):'<div class="small">Нет сохранённых заказов</div>';
+}
+function loadOrder(id){
+  const o=state.orders.find(x=>x.id===id);if(!o)return;
+  el("orderNo").value=o.orderNo||"";
+  el("orderDate").value=o.date||"";
+  el("clientName").value=o.client||"";
+  el("clientPhone").value=o.phone||"";
+  el("route").value=o.route||"";
+  state.vehicle={...o.vehicle};state.items=o.items||[];state.placed=o.placed||[];state.unplaced=o.unplaced||[];
+  el("vL").value=state.vehicle.L;el("vW").value=state.vehicle.W;el("vH").value=state.vehicle.H;el("vMaxW").value=state.vehicle.maxW;
+  renderItems();updateStats();draw();
+}
+function deleteOrder(id){
+  const orders=state.orders.filter(x=>x.id!==id);
+  localStorage.setItem("carloader_orders",JSON.stringify(orders));state.orders=orders;renderOrders();
+}
+function newOrder(){
+  if(confirm("Создать новый заказ? Текущая схема будет очищена.")){
+    state.items=[];state.placed=[];state.unplaced=[];
+    ["clientName","clientPhone","orderNo","route"].forEach(id=>el(id).value="");
+    el("orderDate").value=new Date().toISOString().slice(0,10);
+    renderItems();updateStats();draw();
+  }
+}
+function loadStorage(){
+  state.clients=JSON.parse(localStorage.getItem("carloader_clients")||"[]");
+  state.orders=JSON.parse(localStorage.getItem("carloader_orders")||"[]");
+}
+
+/* =========================
+   ПЕЧАТЬ / PDF
+========================= */
+function printReport(){
+  if(!state.placed.length && state.items.length) optimize();
+  window.print();
+}
+
+/* =========================
+   МОДАЛЬНОЕ ОКНО
+========================= */
+function closeModal(){el("modal").classList.remove("show")}
+
+/* Первичный запуск */
+applyVehicle();
+updateStats();
+</script>
+
+<script>
+/* =========================================================
+   CARLOADER V2 — ИНТЕРАКТИВНОЕ УПРАВЛЕНИЕ РАЗМЕЩЁННЫМ ГРУЗОМ
+   ========================================================= */
+let interactionMode = "select";
+let selectedIndex = -1;
+let dragInfo = null;
+
+function setInteractionMode(mode){
+  interactionMode = mode;
+  const labels = {
+    select:"Режим: выбор. Кликните по грузу.",
+    drag:"Режим: перемещение. Перетаскивайте груз мышкой."
+  };
+  el("selectedInfo").textContent = labels[mode] || "Выберите груз.";
+}
+
+function selectedLoad(){
+  return selectedIndex >= 0 ? state.placed[selectedIndex] : null;
+}
+
+function updateSelectedInfo(){
+  const p = selectedLoad();
+  if(!p){
+    el("selectedInfo").textContent = "Выберите размещённую коробку или паллету на схеме.";
+    return;
+  }
+  el("selectedInfo").innerHTML =
+    "<b>"+esc(p.name)+"</b> · место №"+(selectedIndex+1)+
+    " · "+fmt(p.l,2)+" × "+fmt(p.w,2)+" × "+fmt(p.h,2)+" м"+
+    " · "+fmt(p.weight,1)+" кг"+
+    " · позиция "+fmt(p.x,2)+", "+fmt(p.y)+", "+fmt(p.z);
+}
+
+function pointToCargo(clientX,clientY){
+  const c=el("scene");
+  const rect=c.getBoundingClientRect();
+  const sx=clientX-rect.left, sy=clientY-rect.top;
+  const v=state.vehicle;
+  const w=rect.width,h=rect.height;
+  const scale=Math.min(w/(v.L+v.W+4),h/(v.L*.55+v.W*.55+v.H+3))*1.15;
+  const ox=w/2,oy=h*.70;
+
+  // Обратное преобразование из изометрии приблизительно.
+  // Для выбора используем экранные bounding-box области.
+  let found=-1, bestArea=Infinity;
+  state.placed.forEach((p,i)=>{
+    const pts=[
+      iso(p.x,p.y,p.z,scale,ox,oy),
+      iso(p.x+p.l,p.y,p.z,scale,ox,oy),
+      iso(p.x+p.l,p.y+p.w,p.z,scale,ox,oy),
+      iso(p.x,p.y+p.w,p.z,scale,ox,oy),
+      iso(p.x,p.y,p.z+p.h,scale,ox,oy),
+      iso(p.x+p.l,p.y,p.z+p.h,scale,ox,oy),
+      iso(p.x+p.l,p.y+p.w,p.z+p.h,scale,ox,oy),
+      iso(p.x,p.y+p.w,p.z+p.h,scale,ox,oy)
+    ];
+    const minX=Math.min(...pts.map(q=>q.x))-5;
+    const maxX=Math.max(...pts.map(q=>q.x))+5;
+    const minY=Math.min(...pts.map(q=>q.y))-5;
+    const maxY=Math.max(...pts.map(q=>q.y))+5;
+    if(sx>=minX&&sx<=maxX&&sy>=minY&&sy<=maxY){
+      const area=(maxX-minX)*(maxY-minY);
+      if(area<bestArea){bestArea=area;found=i;}
+    }
+  });
+  return found;
+}
+
+function canvasPointerDown(e){
+  if(!state.placed.length)return;
+  const idx=pointToCargo(e.clientX,e.clientY);
+  if(idx<0){
+    selectedIndex=-1;
+    updateSelectedInfo();
+    draw();
+    return;
+  }
+  selectedIndex=idx;
+  updateSelectedInfo();
+  draw();
+
+  if(interactionMode==="drag"){
+    const rect=el("scene").getBoundingClientRect();
+    dragInfo={
+      startX:e.clientX-rect.left,
+      startY:e.clientY-rect.top,
+      oldX:state.placed[idx].x,
+      oldY:state.placed[idx].y
+    };
+    el("scene").style.cursor="grabbing";
+  }
+}
+
+function canvasPointerMove(e){
+  if(!dragInfo || selectedIndex<0)return;
+  const c=el("scene"), rect=c.getBoundingClientRect();
+  const v=state.vehicle;
+  const w=rect.width,h=rect.height;
+  const scale=Math.min(w/(v.L+v.W+4),h/(v.L*.55+v.W*.55+v.H+3))*1.15;
+  const dx=e.clientX-rect.left-dragInfo.startX;
+  const dy=e.clientY-rect.top-dragInfo.startY;
+
+  // Приближённое обратное изометрическое преобразование.
+  let mx=dx/(2*scale), my=-dy/(0.96*scale);
+  const p=state.placed[selectedIndex];
+  let nx=dragInfo.oldX+mx+my;
+  let ny=dragInfo.oldY-my+mx;
+
+  nx=Math.max(0,Math.min(v.L-p.l,nx));
+  ny=Math.max(0,Math.min(v.W-p.w,ny));
+  p.x=nx;p.y=ny;
+  draw();
+  updateSelectedInfo();
+}
+
+function canvasPointerUp(){
+  if(dragInfo){
+    dragInfo=null;
+    el("scene").style.cursor="default";
+    validateManualPacking();
+  }
+}
+
+function validateManualPacking(){
+  let collision=false;
+  state.placed.forEach((a,i)=>{
+    if(a.x<0||a.y<0||a.x+a.l>state.vehicle.L+.001||a.y+a.w>state.vehicle.W+.001||a.z+a.h>state.vehicle.H+.001) collision=true;
+    state.placed.forEach((b,j)=>{
+      if(i<j && intersects(a,b)) collision=true;
+    });
+  });
+  if(collision){
+    el("result").innerHTML='<span class="bad"><b>⚠ Внимание:</b> после ручного перемещения есть пересечение или выход за границы кузова.</span>';
+  }else{
+    el("result").innerHTML='<span class="good"><b>✓ Схема корректна.</b> Положение груза изменено вручную.</span>';
+  }
+}
+
+function rotateSelected(){
+  const p=selectedLoad();
+  if(!p)return;
+  const oldL=p.l;
+  p.l=p.w;p.w=oldL;
+  if(p.x+p.l>state.vehicle.L)p.x=Math.max(0,state.vehicle.L-p.l);
+  if(p.y+p.w>state.vehicle.W)p.y=Math.max(0,state.vehicle.W-p.w);
+  selectedIndex=Math.min(selectedIndex,state.placed.length-1);
+  updateSelectedInfo();
+  validateManualPacking();
+  draw();
+}
+
+function deleteSelected(){
+  if(selectedIndex<0)return;
+  if(!confirm("Удалить выбранный груз из схемы?"))return;
+  const p=state.placed.splice(selectedIndex,1)[0];
+  state.unplaced.push({
+    uid:p.uid,name:p.name,L:p.L||p.l,W:p.W||p.w,H:p.H||p.h,
+    weight:p.weight,type:p.type,stackable:p.stackable
+  });
+  selectedIndex=-1;
+  updateSelectedInfo();
+  updateStats();
+  draw();
+}
+
+function moveSelected(dx,dy){
+  const p=selectedLoad();
+  if(!p)return;
+  p.x=Math.max(0,Math.min(state.vehicle.L-p.l,p.x+dx));
+  p.y=Math.max(0,Math.min(state.vehicle.W-p.w,p.y+dy));
+  updateSelectedInfo();
+  validateManualPacking();
+  draw();
+}
+
+el("scene").addEventListener("mousedown",canvasPointerDown);
+el("scene").addEventListener("mousemove",canvasPointerMove);
+window.addEventListener("mouseup",canvasPointerUp);
+
+window.addEventListener("keydown",e=>{
+  if(e.key.toLowerCase()==="r" && selectedIndex>=0){
+    rotateSelected();
+  }
+  if(e.key==="Delete" && selectedIndex>=0){
+    deleteSelected();
+  }
+});
+
+const originalDraw = draw;
+draw = function(){
+  originalDraw();
+  if(selectedIndex>=0 && state.placed[selectedIndex]){
+    // Повторно подсвечиваем выбранный объект поверх основной схемы
+    const p=state.placed[selectedIndex];
+    const c=el("scene"),rect=c.getBoundingClientRect();
+    const v=state.vehicle,w=rect.width,h=rect.height;
+    const scale=Math.min(w/(v.L+v.W+4),h/(v.L*.55+v.W*.55+v.H+3))*1.15;
+    const ox=w/2,oy=h*.70;
+    const pts=[
+      iso(p.x,p.y,p.z,scale,ox,oy),
+      iso(p.x+p.l,p.y,p.z,scale,ox,oy),
+      iso(p.x+p.l,p.y+p.w,p.z,scale,ox,oy),
+      iso(p.x,p.y+p.w,p.z,scale,ox,oy),
+      iso(p.x,p.y,p.z+p.h,scale,ox,oy),
+      iso(p.x+p.l,p.y,p.z+p.h,scale,ox,oy),
+      iso(p.x+p.l,p.y+p.w,p.z+p.h,scale,ox,oy),
+      iso(p.x,p.y+p.w,p.z+p.h,scale,ox,oy)
+    ];
+    const ctx=c.getContext("2d");
+    const minX=Math.min(...pts.map(q=>q.x))-5;
+    const maxX=Math.max(...pts.map(q=>q.x))+5;
+    const minY=Math.min(...pts.map(q=>q.y))-5;
+    const maxY=Math.max(...pts.map(q=>q.y))+5;
+    ctx.save();
+    ctx.strokeStyle="#ff3b30";
+    ctx.lineWidth=3;
+    ctx.setLineDash([6,4]);
+    ctx.strokeRect(minX,minY,maxX-minX,maxY-minY);
+    ctx.restore();
+  }
+};
+
+// Перехватываем очистку схемы, чтобы сбрасывать выбор.
+const oldResetPacking=resetPacking;
+resetPacking=function(){
+  selectedIndex=-1;
+  dragInfo=null;
+  oldResetPacking();
+  updateSelectedInfo();
+};
+</script>
+
+</body>
+</html>
